@@ -5,6 +5,7 @@ import os
 import sys
 import json
 from authlib.integrations.flask_client import OAuth
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -38,6 +39,27 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'},
 )
 
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+
+class User(UserMixin):
+    def __init__(self, id_, name, email, picture):
+        self.id = id_
+        self.name = name
+        self.email = email
+        self.picture = picture
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    # For this demo we store user info in session; load minimal user object
+    user = session.get('user')
+    if user and str(user.get('id')) == str(user_id):
+        return User(user.get('id'), user.get('name'), user.get('email'), user.get('picture'))
+    return None
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -60,6 +82,9 @@ def auth():
         'name': user_info.get('name'),
         'picture': user_info.get('picture'),
     }
+    # Create and login the user via Flask-Login
+    user_obj = User(user_info.get('id'), user_info.get('name'), user_info.get('email'), user_info.get('picture'))
+    login_user(user_obj)
     return redirect(url_for('profile'))
 
 
@@ -74,6 +99,7 @@ def profile():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
+    logout_user()
     return redirect(url_for('home'))
 
 @app.route('/get_message')
