@@ -4,7 +4,13 @@ import platform
 import os
 import sys
 
-from . import auth
+try:
+    # When run as a package (python -m src.main) this works
+    from . import auth
+except Exception:
+    # When run as a script, ensure src is on sys.path and import
+    sys.path.append(os.path.dirname(__file__))
+    import auth
 
 app = Flask(__name__)
 auth.init_app(app)
