@@ -1,107 +1,20 @@
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, request
 from datetime import datetime
 import platform
 import os
 import sys
-import json
-from authlib.integrations.flask_client import OAuth
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-from dotenv import load_dotenv
+
+from . import auth
 
 app = Flask(__name__)
-load_dotenv()
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
-
-# OAuth setup
-oauth = OAuth(app)
-# Try to load credentials from google_oauth.json if it exists (downloaded from Google Cloud)
-cred_path = os.path.join(os.path.dirname(__file__), '..', 'google_oauth.json')
-if os.path.exists(cred_path):
-    try:
-        with open(cred_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            web = data.get('web') or data.get('installed') or {}
-            GOOGLE_CLIENT_ID = web.get('client_id')
-            GOOGLE_CLIENT_SECRET = web.get('client_secret')
-    except Exception:
-        GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-        GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-else:
-    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-
-oauth.register(
-    name='google',
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    # Use OpenID Connect discovery so Authlib can obtain jwks_uri and other endpoints
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'},
-)
-
-# Flask-Login setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-
-
-class User(UserMixin):
-    def __init__(self, id_, name, email, picture):
-        self.id = id_
-        self.name = name
-        self.email = email
-        self.picture = picture
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    # For this demo we store user info in session; load minimal user object
-    user = session.get('user')
-    if user and str(user.get('id')) == str(user_id):
-        return User(user.get('id'), user.get('name'), user.get('email'), user.get('picture'))
-    return None
+auth.init_app(app)
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
 
-@app.route('/login')
-def login():
-    # Build absolute HTTPS redirect URI for Google
-    redirect_uri = url_for('auth', _external=True, _scheme='https')
-    return oauth.google.authorize_redirect(redirect_uri)
-
-
-@app.route('/auth')
-def auth():
-    token = oauth.google.authorize_access_token()
-    # Use the full OpenID Connect userinfo endpoint to avoid relative URL issues
-    user_info = oauth.google.get('https://openidconnect.googleapis.com/v1/userinfo').json()
-    session['user'] = {
-        'id': user_info.get('id'),
-        'email': user_info.get('email'),
-        'name': user_info.get('name'),
-        'picture': user_info.get('picture'),
-    }
-    # Create and login the user via Flask-Login
-    user_obj = User(user_info.get('id'), user_info.get('name'), user_info.get('email'), user_info.get('picture'))
-    login_user(user_obj)
-    return redirect(url_for('profile'))
-
-
-@app.route('/profile')
-def profile():
-    user = session.get('user')
-    if not user:
-        return redirect(url_for('home'))
-    return render_template('profile.html', user=user)
-
-
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    logout_user()
-    return redirect(url_for('home'))
+# Auth routes are handled in src/auth.py (registered as a blueprint)
 
 @app.route('/get_message')
 def get_message():
