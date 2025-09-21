@@ -75,7 +75,8 @@ def login():
 @app.route('/auth')
 def auth():
     token = oauth.google.authorize_access_token()
-    user_info = oauth.google.get('userinfo').json()
+    # Use the full OpenID Connect userinfo endpoint to avoid relative URL issues
+    user_info = oauth.google.get('https://openidconnect.googleapis.com/v1/userinfo').json()
     session['user'] = {
         'id': user_info.get('id'),
         'email': user_info.get('email'),
