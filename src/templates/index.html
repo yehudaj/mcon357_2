@@ -33,7 +33,18 @@
 </head>
 <body>
     <h1>Hello World! Welcome to MCON 357!</h1>
-    <p><a href="/login" id="loginLink">Sign in with Google</a></p>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flashes">
+                    {% for msg in messages %}
+                        <li>{{ msg }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <p><a href="{{ url_for('auth.login') }}" id="loginLink">Sign in with Google</a></p>
+        <p><a href="{{ url_for('auth.login') }}" id="createLink">Create an account (Sign in with Google)</a></p>
     <button id="myButton">Get Server Info (AJAX)</button>
     <div id="messageArea"></div>
 
