@@ -20,6 +20,22 @@ def get_user_by_google_id(google_id: str) -> Optional[dict]:
     return coll.find_one({'google_id': str(google_id)})
 
 
+def get_all_users() -> list:
+    """Return a list of all user documents with stringified _id as 'id'."""
+    coll = _get_collection()
+    users = []
+    for u in coll.find():
+        # Convert ObjectId to string for template rendering
+        u = dict(u)
+        if u.get('_id') is not None:
+            try:
+                u['id'] = str(u['_id'])
+            except Exception:
+                u['id'] = u.get('_id')
+        users.append(u)
+    return users
+
+
 def create_user(google_id: str, name: str, email: str, picture: str, birthday: str) -> dict:
     coll = _get_collection()
     user = {
